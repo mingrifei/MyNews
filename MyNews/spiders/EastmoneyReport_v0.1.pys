@@ -1,0 +1,110 @@
+# -*- coding: utf-8 -*-
+
+
+import json
+from scrapy_splash import SplashRequest
+from scrapy_splash import SplashMiddleware
+from scrapy_splash import SplashRequest
+from scrapy_redis.spiders import RedisSpider
+from MyNews.items import NewsItem
+from scrapy import Request
+from ..headers import qqheaders
+import requests
+import base64
+from lxml import etree
+
+class EastmoneyReportSpider(RedisSpider):
+    """Spider that reads urls from redis queue (qqnews:start_urls)."""
+
+
+    start_url = "http://data.eastmoney.com/report/#dHA9MCZjZz0wJmR0PTImcGFnZT0x"
+
+    name = 'EastmoneyReport'
+    redis_key = 'EastmoneyReport:start_urls'
+    taglist = ['ent','sports','finance','tech','report']
+
+    def __init__(self, *args, **kwargs):
+        # Dynamically define the allowed domains list.
+        domain = kwargs.pop('eastmoney.com', 'data.eastmoney.com')
+        self.allowed_domains = filter(None, domain.split(','))
+        super(EastmoneyReportSpider, self).__init__(*args, **kwargs)
+    # request需要封装成SplashRequest
+    def start_requests(self):
+        for url in self.start_urls:
+            yield SplashRequest(url
+                                , self.parse
+                                , args={'wait': '0.5'}
+                                # ,endpoint='render.json'
+                                )
+    def parse(self,response):
+        # 取得总页数
+        html = etree.HTML(response.text)
+        vlist = html.xpath("//div[@id='PageCont']//a/text()")
+        page_total = int(vlist[-2])
+        #page_total = 3
+        # 循环遍历所有页
+        for i in range(1,page_total):
+            # 得到每页的url
+            url_param='tp=0&cg=0&dt=2&page='+str(i)
+            encodestr = base64.b64encode(url_param.encode('utf-8'))
+            url_encodestr=str(encodestr, 'utf-8')
+            #url = 'http://stock.eastmoney.com/news/cgszb_'+str(i)+'.html'
+            url = 'http://data.eastmoney.com/report/#'+url_encodestr
+            print('URL的值为:',url)
+            #yield Request(url,callback=self.parsepage,dont_filter=True)
+            yield SplashRequest(url
+                                , self.parse
+                                , args={'wait': '0.5'}
+                                # ,endpoint='render.json'
+                                )
+
+    def parsepage(self,response):
+        # 得到新闻详情页的url列表
+        post_url_list = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[6]/div[@class='report_tit']/a/@href").extract()
+        pubdate = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[2]/span[@class='txt']").extract()
+        stkcode = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[3]/a").extract()
+        stkname = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[4]/a").extract()
+        reportname = response.xpath("//table[@id='dt_1']/tbody/tr/td[6]/div[@class='report_tit']/a").extract()
+        ywpj = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[7]").extract()
+        #评级变动
+        pjbd = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[8]").extract()
+        #评级机构
+        pjjg = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[9]").extract()
+        #预测收益1
+        ycsy1 = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[10]").extract()
+        #市盈率1
+        ycsyl1 = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[11]").extract()
+        #预测收益2
+        ycsy2 = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[12]").extract()
+        #市盈率2
+        ycsyl2 = response.xpath("//div[@class='content tb14']/table[@id='dt_1']/tbody/tr/td[13]").extract()
+
+        # 遍历所有新闻url
+        for i,post_url in post_url_list:
+            metavalue={'tag':'report',
+                       'pubdate':pubdate[i],
+                       'stkcode':stkcode[i],
+                       'stkname':stkname[i],
+                       'reportname':reportname[i],
+                       'ywpj':ywpj[i],
+                       'pjbd':pjbd[i],
+                       'pjjg':pjjg[i],
+                       'ycsy1':ycsy1[i],
+                       'ycsyl1':ycsyl1[i],
+                       'ycsy2':ycsy2[i],
+                       'ycsyl2':ycsyl2[i]
+                       }
+            yield Request(post_url, callback=self.parsebody, meta=metavalue,dont_filter=True)
+
+    # 抽取页面数据
+    def parsebody(self,response):
+        meta = response.meta
+
+        item = NewsItem()
+        item['tag'] = meta['tag']
+        item['title']=meta['reportname']
+        item['url'] = response.url
+        item['body'] = '\n'.join(response.xpath("//div[@id='ContentBody']/div[@class='newsContent']").xpath('string(.)').extract()).strip()
+        item['pubtime'] = response.xpath("//div[@class='report-infos']/span[2]/text()").extract()[0]
+        item['refer'] = '东方财富'
+        yield item
