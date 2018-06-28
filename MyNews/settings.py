@@ -14,7 +14,7 @@ BOT_NAME = 'MyNews'
 SPIDER_MODULES = ['MyNews.spiders']
 NEWSPIDER_MODULE = 'MyNews.spiders'
 
-SPLASH_URL = 'http://192.168.99.100:8050'
+SPLASH_URL = 'http://122.112.238.137:8050'
 
 DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
 SCHEDULER = "scrapy_redis.scheduler.Scheduler"
@@ -109,7 +109,7 @@ ITEM_PIPELINES = {
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-#REDIS_URL = 'redis://kingdom88@122.112.238.137:7000'
+#REDIS_URL = 'redis://kingdom88@122.112.238.137:7000?db=14'
 REDIS_URL = 'redis://127.0.0.1:6379/14'
 
 LOG_LEVEL = 'DEBUG'

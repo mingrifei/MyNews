@@ -42,6 +42,34 @@ class ReportItem(Item):
     crawled = Field()
     spider = Field()
 
+class companybaseItem(Item):
+    # define the fields for your item here like:
+    stkcode = Field()
+    stkname = Field()
+    companyname = Field()
+    companyaddress= Field()
+    companypostcode = Field()
+    firstregaddress = Field()
+    regcode = Field()
+    legalname = Field()
+    ceoname = Field()
+    url = Field()
+    crawled = Field()
+    spider = Field()
+    body = Field()
+class companybase_personItem(Item):
+    # define the fields for your item here like:
+    stkcode = Field()
+    stkname = Field()
+    personname = Field()
+    personjob= Field()
+    personbirth = Field()
+    personsex = Field()
+    personedu = Field()
+    url = Field()
+    crawled = Field()
+    spider = Field()
+    body = Field()
 
 
 class ExampleItem(Item):
